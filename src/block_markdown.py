@@ -1,5 +1,9 @@
 from enum import Enum
 
+from htmlnode import ParentNode, LeafNode
+from textnode import text_node_to_html_node
+from inline_markdown import text_to_textnodes
+
 
 class BlockType(Enum):
     PARAGRAPH = "paragraph"
@@ -11,25 +15,14 @@ class BlockType(Enum):
 
 
 def markdown_to_blocks(markdown):
-    block_list = []
-
-    # split markdown into individual block /n/n
-    block_list = markdown.split("\n\n")
-
-    for i, item in enumerate(block_list):
-        item.strip()
-
-        # if block only /n whitespace or empty remove it
-        if item == "" or item == "\n":
-            block_list.remove(item)
+    blocks = markdown.split("\n\n")
+    filtered_blocks = []
+    for block in blocks:
+        if block == "":
             continue
-
-        # clean up
-        item = item.rstrip("\n")
-        item = item.lstrip("\n")
-        block_list[i] = item
-
-    return block_list
+        block = block.strip()
+        filtered_blocks.append(block)
+    return filtered_blocks
 
 
 def block_to_blocktype(block):
@@ -57,3 +50,72 @@ def block_to_blocktype(block):
             i += 1
         return BlockType.OLIST
     return BlockType.PARAGRAPH
+
+
+def markdown_to_html_node(markdown):
+    # Goal return a single parentnode that contains many sub nodes and should be wrapped in a div
+    current_children = []
+    result_parent = ParentNode("div", current_children)
+    # split to block
+    current_blocks = markdown_to_blocks(markdown)
+    # loop each block
+    for block in current_blocks:
+        # get type of block
+        block_type = block_to_blocktype(block)
+        # based on type create new htmlnode
+        match block_type:
+            case BlockType.PARAGRAPH:
+                children_node_list = block_to_htmlnodes(block)
+                html_children = join_htmlnodes(children_node_list)
+                current_children.append(LeafNode("p", html_children))
+            case BlockType.CODE:
+                block = block[4:-3]
+                block = f"<code>{block}</code>"
+                current_children.append(LeafNode("pre", block))
+            case BlockType.HEADING:
+                children_node_list = block_to_htmlnodes(block)
+                html_children = join_htmlnodes(children_node_list)
+                split_header = html_children.split(" ", 1)
+                heading_count = len(split_header[0])
+                current_children.append(LeafNode(f"h{heading_count}", html_children[1]))
+            case BlockType.ULIST:
+                children_node_list = block_to_htmlnodes(block)
+                html_children = join_listnodes(children_node_list)
+                current_children.append(LeafNode("ul", html_children))
+            case BlockType.OLIST:
+                children_node_list = block_to_htmlnodes(block)
+                html_children = join_listnodes(children_node_list)
+                current_children.append(LeafNode("ol", html_children))
+            case BlockType.QUOTE:
+                children_node_list = block_to_htmlnodes(block)
+                html_children = join_htmlnodes(children_node_list)
+                current_children.append(LeafNode("blockquote", html_children))
+
+    result_parent.children = current_children
+    return result_parent
+
+    # assign child htmlnode objects to block
+    #
+
+
+def block_to_htmlnodes(block):
+    block = block.replace("\n", "")
+    text_node_list = text_to_textnodes(block)
+    html_node_list = []
+    for node in text_node_list:
+        html_node_list.append(text_node_to_html_node(node))
+    return html_node_list
+
+
+def join_htmlnodes(nodes):
+    html_joined = ""
+    for node in nodes:
+        html_joined += node.to_html()
+    return html_joined
+
+
+def join_listnodes(nodes):
+    html_joined = ""
+    for node in nodes:
+        html_joined += f"<li>{node.to_html}</li>"
+    return html_joined
