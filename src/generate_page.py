@@ -1,5 +1,5 @@
 import os
-
+from pathlib import Path
 from block_markdown import markdown_to_html_node
 
 
@@ -22,7 +22,6 @@ def generate_page(from_path, template_path, dest_path, basepath):
     template = template.replace('href="/', f'href="{basepath}')
     template = template.replace('src="/', f'src="{basepath}')
 
-    dest_path = dest_path.replace(".md", ".html")
     dest_dir_path = os.path.dirname(dest_path)
     if dest_dir_path != "":
         os.makedirs(dest_dir_path, exist_ok=True)
@@ -47,6 +46,7 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path, bas
         dest_path = os.path.join(dest_dir_path, filename)
         print(f" * Generating {from_path} -> {dest_path}")
         if os.path.isfile(from_path):
+            dest_path = Path(dest_path).with_suffix(".html")
             generate_page(from_path, template_path, dest_path, basepath)
         else:
             generate_pages_recursive(from_path, template_path, dest_path, basepath)
